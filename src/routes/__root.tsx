@@ -39,16 +39,6 @@ export const Route = createRootRoute({
       { name: "twitter:card", content: "summary" },
       { name: "twitter:title", content: "TrAIce" },
       { name: "twitter:description", content: "TrAIce — enterprise AI usage dashboard." },
-      {
-        property: "og:image",
-        content:
-          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/a1f7a509-2d4c-478e-890a-600881476e3d/id-preview-1d9b205e--8956fb48-7004-4480-ad43-43572ba303de.lovable.app-1777390000246.png",
-      },
-      {
-        name: "twitter:image",
-        content:
-          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/a1f7a509-2d4c-478e-890a-600881476e3d/id-preview-1d9b205e--8956fb48-7004-4480-ad43-43572ba303de.lovable.app-1777390000246.png",
-      },
     ],
     links: [
       {

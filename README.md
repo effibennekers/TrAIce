@@ -97,11 +97,6 @@ Any static-friendly Node host works. Two common options:
   set the build command to `bun run build` (or `npm run build`), and serve
   the generated `.output/` directory as documented by TanStack Start.
 
-## Migrating from Lovable
-
-If you exported this repository from Lovable, read `MIGRATION.md` for the
-one-time steps to make the project fully standalone (Vite config swap, etc.).
-
 ## License
 
 Prototype — no license granted by default. Contact the contributors before
