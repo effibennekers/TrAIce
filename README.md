@@ -1,5 +1,7 @@
 # TrAIce
 
+![TrAIce dashboard](docs/screenshot.png)
+
 TrAIce is a frontend-only prototype dashboard for exploring enterprise AI usage
 and its energy footprint. It was built by contributors from ING, RVO, UWV, DNB,
 UvA, and the University of Twente during a TNO challenge on measuring the
