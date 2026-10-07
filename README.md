@@ -71,7 +71,33 @@ The app runs at http://localhost:8080.
 bun run build         # production build
 bun run build:dev     # dev-mode build (source maps, unminified)
 bun run preview       # preview the production build locally
+npm run start         # serve the production build with server.cjs after build
 ```
+
+## Docker (distroless)
+
+This repo now includes a hardened multi-stage Docker build with a separate
+`server.cjs` runtime and a distroless `nonroot` final image.
+
+```bash
+npm run docker:build
+npm run docker:run
+```
+
+Or directly:
+
+```bash
+docker build -t traice .
+docker run --rm -p 8080:8080 traice
+```
+
+Optional build args:
+
+- `NODE_VERSION` (default: `26`)
+- `PORT` (default: `8080`)
+- `VITE_BASE_PATH` (default: `/`)
+
+The container exposes health endpoints at `/health` and `/healthz`.
 
 ## Environment variables
 
@@ -97,7 +123,7 @@ Any static-friendly Node host works. Two common options:
   `bunx wrangler deploy` after `bun run build`.
 - **Vercel / Netlify / Cloudflare Pages** — point the platform at this repo,
   set the build command to `bun run build` (or `npm run build`), and serve
-  the generated `.output/` directory as documented by TanStack Start.
+  the generated `dist/client` directory.
 
 ## License
 
