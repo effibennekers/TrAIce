@@ -16,27 +16,19 @@ import { WelcomeModal } from "@/components/dashboard/WelcomeModal";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { fetchDashboardData } from "@/lib/api";
 import { getSimulationMultiplier, type SimulationInput } from "@/lib/simulation";
 import { DEFAULT_MODEL_IDS, type ModelId } from "@/lib/models";
 import {
   DATA_CENTERS,
-  DEPARTMENTS,
   PROVIDERS,
-  generateData,
-  setTodayOverride,
+  type DashboardData,
   type ProviderId,
   type DataCenterId,
   type DepartmentId,
   type TimePreset,
 } from "@/lib/mock-data";
-import {
-  aggregateUploaded,
-  parseCsv,
-  buildDataset,
-  type UploadedDataset,
-  type BaselineDataset,
-} from "@/lib/uploaded-data";
-import { autoMap } from "@/lib/csv-schema";
+import { aggregateUploaded, type UploadedDataset, type BaselineDataset } from "@/lib/uploaded-data";
 
 export const Route = createFileRoute("/")({
   component: Dashboard,
@@ -64,45 +56,15 @@ function Dashboard() {
   const [simulationOpen, setSimulationOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploaded, setUploadedState] = useState<UploadedDataset | null>(null);
-  const [todayVersion, setTodayVersion] = useState(0);
-  const setUploaded = (ds: UploadedDataset | null) => {
-    if (ds && ds.isDefault) {
-      setTodayOverride(new Date("2026-06-15T23:59:59"));
-    } else {
-      setTodayOverride(null);
-    }
-    setTodayVersion((v) => v + 1);
-    setUploadedState(ds);
-  };
+  const [apiData, setApiData] = useState<DashboardData | null>(null);
+  const [apiLoading, setApiLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const setUploaded = (ds: UploadedDataset | null) => setUploadedState(ds);
   const [baseline, setBaseline] = useState<BaselineDataset | null>(null);
   const [welcomeOpen, setWelcomeOpen] = useState(false);
   const [headerVisible, setHeaderVisible] = useState(true);
   const lastScrollY = useRef(0);
-
-  // Auto-load bundled sample CSV on first mount so the dashboard ships with
-  // real-shaped data (not the synthetic mock generator).
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch("/sample-ai-usage.csv");
-        if (!res.ok) return;
-        const text = await res.text();
-        const file = new File([text], "sample-ai-usage.csv", { type: "text/csv" });
-        const parsed = await parseCsv(file);
-        const mapping = autoMap(parsed.headers);
-        const ds = buildDataset("sample-ai-usage.csv", parsed.rawRows, mapping);
-        if (!cancelled && ds.rowCount > 0) {
-          setUploaded({ ...ds, isDefault: true });
-        }
-      } catch {
-        // fall back to synthetic data — no-op
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const latestRequestId = useRef(0);
 
   // First-visit welcome modal
   useEffect(() => {
@@ -187,6 +149,53 @@ function Dashboard() {
     }
   }, [uploadedOptions]);
 
+  useEffect(() => {
+    if (uploaded) return;
+
+    const requestId = ++latestRequestId.current;
+    let active = true;
+    setApiLoading(true);
+    setApiError(null);
+
+    fetchDashboardData({
+      preset,
+      customStart,
+      customEnd,
+      models,
+      provider,
+      dataCenter,
+      department,
+      simulationMultiplier,
+    })
+      .then((nextData) => {
+        if (!active || requestId !== latestRequestId.current) return;
+        setApiData(nextData);
+      })
+      .catch((error: unknown) => {
+        if (!active || requestId !== latestRequestId.current) return;
+        setApiData(null);
+        setApiError(error instanceof Error ? error.message : "Failed to load dashboard data.");
+      })
+      .finally(() => {
+        if (!active || requestId !== latestRequestId.current) return;
+        setApiLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [
+    uploaded,
+    preset,
+    customStart,
+    customEnd,
+    models,
+    provider,
+    dataCenter,
+    department,
+    simulationMultiplier,
+  ]);
+
   const data = useMemo(() => {
     const opts = {
       preset,
@@ -198,9 +207,7 @@ function Dashboard() {
       department,
       simulationMultiplier,
     };
-    return uploaded ? aggregateUploaded(uploaded, opts) : generateData(opts);
-    // todayVersion re-derives the dataset when the default "today" override changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return uploaded ? aggregateUploaded(uploaded, opts) : apiData;
   }, [
     uploaded,
     preset,
@@ -211,7 +218,7 @@ function Dashboard() {
     dataCenter,
     department,
     simulationMultiplier,
-    todayVersion,
+    apiData,
   ]);
 
   return (
@@ -363,27 +370,48 @@ function Dashboard() {
       </header>
 
       <main className="max-w-[1400px] mx-auto px-4 md:px-8 py-6 md:py-8 space-y-6">
-        <div className="flex justify-center">
-          <AISearch data={data} className="w-full max-w-2xl md:w-full" />
-        </div>
-        <UsageWidget data={data} models={models} />
+        {!data && (
+          <div className="rounded-3xl border border-white/40 bg-background/80 backdrop-blur-sm px-6 py-12 text-center">
+            <p className="text-sm md:text-base font-medium">
+              {apiLoading
+                ? "Loading dashboard data from backend..."
+                : "Could not load dashboard data from backend."}
+            </p>
+            {!apiLoading && apiError && (
+              <p className="mt-2 text-xs md:text-sm text-muted-foreground break-all">{apiError}</p>
+            )}
+          </div>
+        )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <SuggestionsWidget />
-          <ProductivityWidget data={data} models={models} baseline={baseline} />
-        </div>
+        {data && (
+          <>
+            <div className="flex justify-center">
+              <AISearch data={data} className="w-full max-w-2xl md:w-full" />
+            </div>
+            <UsageWidget data={data} models={models} />
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <DepartmentBenchmarkWidget data={data} department={department} />
-          <IndustryBenchmarkWidget data={data} />
-        </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <SuggestionsWidget />
+              <ProductivityWidget data={data} models={models} baseline={baseline} />
+            </div>
 
-        <ImpactBreakdownWidget data={data} models={models} labelOverrides={simulation?.useCases} />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <DepartmentBenchmarkWidget data={data} department={department} />
+              <IndustryBenchmarkWidget data={data} />
+            </div>
 
-        <footer className="text-center text-xs text-muted-foreground pt-4 pb-8">
-          Prototype · figures are illustrative · CO₂ estimates based on token-weighted model
-          averages
-        </footer>
+            <ImpactBreakdownWidget
+              data={data}
+              models={models}
+              labelOverrides={simulation?.useCases}
+            />
+
+            <footer className="text-center text-xs text-muted-foreground pt-4 pb-8">
+              Prototype · figures are illustrative · CO₂ estimates based on token-weighted model
+              averages
+            </footer>
+          </>
+        )}
       </main>
 
       <SimulationModal

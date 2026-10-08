@@ -21,8 +21,7 @@ dist-ssr
 .dev.vars
 
 # Editor directories and files
-.vscode/*
-!.vscode/extensions.json
+.vscode
 .idea
 .DS_Store
 *.suo
@@ -35,6 +34,13 @@ dist-ssr
 .env
 .env.*
 !.env.example
+
+# Python backend
+.venv/
+backend/.venv/
+__pycache__/
+*.pyc
+.ruff_cache/
 
 # Lovable
 .lovable/

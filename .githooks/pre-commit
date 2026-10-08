@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+printf "\nRunning Prettier checks...\n"
+cd "$REPO_ROOT/dashboard"
+npx prettier --check . ../README.md ../docker-compose.yml ../backend/README.md
+
+printf "\nRunning Ruff checks...\n"
+cd "$REPO_ROOT/backend"
+uvx ruff check .
