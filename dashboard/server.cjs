@@ -6,7 +6,7 @@ const { readFile, readdir } = require("node:fs/promises");
 
 const SAFE_PATH_SEGMENT = /^[A-Za-z0-9._-]+$/;
 const DIST_DIR = path.join(__dirname, "dist", "client");
-const SSR_ENTRY_FILE = path.join(__dirname, "dist", "server", "index.js");
+const SSR_ENTRY_FILE = path.join(__dirname, "dist", "server", "server.js");
 const PORT = Number.parseInt(process.env.PORT || "8080", 10);
 const BASE_PATH = normalizeBasePath(process.env.BASE_PATH || process.env.VITE_BASE_PATH || "/");
 const ENFORCE_FORWARDED_PROTO =
@@ -170,7 +170,7 @@ function applySecurityHeaders(res) {
   if (!res.hasHeader("Content-Security-Policy")) {
     res.setHeader(
       "Content-Security-Policy",
-      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'"
+      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'",
     );
   }
   if (!res.hasHeader("Strict-Transport-Security")) {

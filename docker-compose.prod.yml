@@ -1,0 +1,88 @@
+name: traice-prod
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+      args:
+        PYTHON_VERSION: "3.13"
+        PORT: 8000
+    expose:
+      - "8000"
+    environment:
+      PORT: "8000"
+      CORS_ORIGINS: https://localhost:8443,https://127.0.0.1:8443
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health').read()",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    restart: unless-stopped
+
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+      target: production
+      args:
+        PORT: 8080
+        VITE_API_BASE_URL: /api
+    expose:
+      - "8080"
+    environment:
+      PORT: "8080"
+      VITE_API_BASE_URL: /api
+    depends_on:
+      backend:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    restart: unless-stopped
+
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+      target: production
+    depends_on:
+      backend:
+        condition: service_healthy
+      dashboard:
+        condition: service_started
+    ports:
+      - "8080:8080"
+      - "8443:8443"
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    restart: unless-stopped
